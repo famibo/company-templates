@@ -348,10 +348,25 @@ perform_promotion() {
     log_info "Pushing branch to origin..."
     git -C "$REPO_ROOT" push -u origin "$branch_name"
 
+    # Remove trap before PR creation (branch is already pushed, don't cleanup on PR failure)
+    trap - ERR
+
     # Create PR
     log_info "Creating pull request..."
     if command -v gh &> /dev/null; then
-        pr_url=$(gh pr create \
+        # Check if gh is authenticated
+        if ! gh auth status &>/dev/null; then
+            log_warn "GitHub CLI (gh) is not authenticated"
+            log_warn "Set GH_TOKEN environment variable with a GitHub PAT before running this script"
+            log_warn "Example: GH_TOKEN=ghp_xxx ./scripts/promote-template.sh ..."
+            log_info "Branch pushed: $branch_name"
+            log_info "Create PR at: https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo 'OWNER/REPO')/pull/new/$branch_name"
+            log_success "Promotion completed (PR creation skipped)"
+            return 0
+        fi
+
+        local pr_output
+        if pr_output=$(gh pr create \
             --title "$commit_msg" \
             --body "$(cat <<EOF
 ## Summary
@@ -369,16 +384,17 @@ perform_promotion() {
 EOF
 )" \
             --base main \
-            --head "$branch_name" 2>&1)
-
-        log_success "Pull request created: $pr_url"
+            --head "$branch_name" 2>&1); then
+            log_success "Pull request created: $pr_output"
+        else
+            log_warn "Failed to create PR automatically: $pr_output"
+            log_info "Branch pushed: $branch_name"
+            log_info "Please create PR manually"
+        fi
     else
         log_warn "GitHub CLI (gh) not installed. Please create PR manually."
         log_info "Branch pushed: $branch_name"
     fi
-
-    # Remove trap
-    trap - ERR
 
     log_success "Promotion completed successfully!"
 }
