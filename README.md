@@ -1,6 +1,6 @@
 # Backstage Company Templates
 
-Welcome to the `devhub-company-templates` library! This repository houses the global software templates for our company's Developer Hub integrations.
+Welcome to the `company-templates` library! This repository houses the global software templates for our company's Backstage integrations.
 
 ## 🌟 Overview
 
