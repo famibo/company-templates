@@ -5,16 +5,17 @@ metadata:
   name: nestjs-template
   title: NestJS Application Template
   description: |
-    Create a new NestJS application with TypeScript, ready for development.
+    Create a new NestJS application with TypeScript, ready for integration testing.
     \
-    THIS IS THE INT VERSION. DO NOT EDIT UNLESS YOU KNOW WHAT YOU ARE DOING.
+    THIS IS THE INT VERSION. TEST IT INSIDE AND OUT.
     \
-    Already customized for internal use.
+    Further customize this template to fit your project's requirements.
   tags:
     - nestjs
     - typescript
     - backend
     - beta
+    - v1.0.0
 spec:
   owner: user:default/guest
   type: service
