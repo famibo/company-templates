@@ -5,20 +5,20 @@ metadata:
   name: nestjs-template
   title: NestJS Application Template
   description: |
-    Create a new NestJS application with TypeScript, ready for development.
+    Create a new NestJS application with TypeScript, ready for integration testing.
     \
-    THIS IS THE INT VERSION. DO NOT EDIT UNLESS YOU KNOW WHAT YOU ARE DOING.
+    THIS IS THE INT VERSION. TEST IT INSIDE AND OUT.
     \
-    Already customized for internal use.
+    Further customize this template to fit your project's requirements.
   tags:
     - nestjs
     - typescript
     - backend
     - beta
+    - v1.0.0
 spec:
   owner: user:default/guest
   type: service
-
   parameters:
     - title: Provide component information
       required:
@@ -46,7 +46,6 @@ spec:
           ui:options:
             allowedHosts:
               - github.com
-
   steps:
     - id: fetch-base
       name: Fetch Base
@@ -57,7 +56,6 @@ spec:
           name: ${{ parameters.name }}
           description: ${{ parameters.description }}
           owner: ${{ user.entityRef }}
-
     - id: publish
       name: Publish to GitHub
       action: publish:github
@@ -66,14 +64,12 @@ spec:
         repoUrl: ${{ parameters.repoUrl }}
         defaultBranch: main
         repoVisibility: public
-
     - id: register
       name: Register in Catalog
       action: catalog:register
       input:
         repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
         catalogInfoPath: /catalog-info.yaml
-
     - id: notify
       name: Notify
       action: notification:send
@@ -84,7 +80,6 @@ spec:
         title: 'NestJS Template executed'
         info: 'Your NestJS application ${{ parameters.name }} has been created'
         severity: 'normal'
-
   output:
     links:
       - title: Repository
