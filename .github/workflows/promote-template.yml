@@ -58,7 +58,7 @@ jobs:
 
       - name: Run promotion script
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           ./scripts/promote-template.sh \
             --template "${{ inputs.template }}" \
