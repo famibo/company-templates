@@ -10,6 +10,8 @@ metadata:
     THIS IS THE DEV VERSION. EDIT AS NEEDED.
     \
     Further customize this template to fit your project's requirements.
+  labels:
+    version: 1.0.0
   tags:
     - experimental
 spec:

@@ -10,12 +10,13 @@ metadata:
     THIS IS THE INT VERSION. TEST IT INSIDE AND OUT.
     \
     Further customize this template to fit your project's requirements.
+  labels:
+    version: 1.0.0
   tags:
     - nestjs
     - typescript
     - backend
     - beta
-    - v1.0.0
 spec:
   owner: user:default/guest
   type: service
