@@ -7,15 +7,16 @@ metadata:
   description: |
     An example template for the scaffolder that creates a simple Node.js service.
     \
-    THIS IS THE INT VERSION. DO NOT EDIT UNLESS YOU KNOW WHAT YOU ARE DOING.
+    THIS IS THE INT VERSION. TEST IT INSIDE AND OUT.
     \
-    Already customized for internal use.
+    Further customize this template to fit your project's requirements.
+  labels:
+    version: 1.0.0
   tags:
-    - beta
+    - experimental
 spec:
   owner: user:default/guest
   type: service
-
   parameters:
     - title: Fill in some steps
       required:
@@ -39,7 +40,6 @@ spec:
           ui:options:
             allowedHosts:
               - github.com
-
   steps:
     - id: fetch-base
       name: Fetch Base
@@ -49,7 +49,6 @@ spec:
         values:
           name: ${{ parameters.name }}
           owner: ${{ user.entityRef }}
-
     - id: publish
       name: Publish
       action: publish:github
@@ -57,14 +56,12 @@ spec:
         description: This is ${{ parameters.name }}
         repoUrl: ${{ parameters.repoUrl }}
         defaultBranch: 'main'
-
     - id: register
       name: Register
       action: catalog:register
       input:
         repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
         catalogInfoPath: '/catalog-info.yaml'
-
     - id: notify
       name: Notify
       action: notification:send
@@ -75,7 +72,6 @@ spec:
         title: 'Template executed'
         info: 'Your template has been executed'
         severity: 'normal'
-
   output:
     links:
       - title: Repository
