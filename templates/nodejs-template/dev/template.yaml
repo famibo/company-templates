@@ -7,7 +7,7 @@ metadata:
   description: |
     An example template for the scaffolder that creates a simple Node.js service.
     \
-    THIS IS THE DEV VERSION. EDIT AS NEEDED.
+    THIS IS THE INT VERSION. TEST IT INSIDE AND OUT.
     \
     Further customize this template to fit your project's requirements.
   labels:
