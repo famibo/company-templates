@@ -7,13 +7,13 @@ metadata:
   description: |
     An example template for the scaffolder that creates a simple Node.js service.
     \
-    THIS IS THE INT VERSION. TEST IT INSIDE AND OUT.
+    PRODUCTION VERSION.
     \
     Further customize this template to fit your project's requirements.
   labels:
     version: 1.0.0
   tags:
-    - experimental
+    - stable
 spec:
   owner: user:default/guest
   type: service
