@@ -2,7 +2,7 @@ apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
   namespace: prod
-  name: nestjs-template
+  name: nestjs-template-legacy
   title: NestJS Application Template
   description: |
     Create a new NestJS application with TypeScript, ready for integration testing.
@@ -12,6 +12,7 @@ metadata:
     Further customize this template to fit your project's requirements.
   labels:
     version: 1.0.0
+    deprecated: true
   tags:
     - nestjs
     - typescript
