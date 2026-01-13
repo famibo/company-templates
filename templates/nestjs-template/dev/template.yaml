@@ -1,7 +1,7 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  namespace: dev
+  namespace: prod
   name: nestjs-template
   title: NestJS Application Template
   description: |
