@@ -12,7 +12,7 @@ metadata:
     Further customize this template to fit your project's requirements.
   labels:
     version: 1.0.0
-    deprecated: true
+    deprecated: "true"
   tags:
     - nestjs
     - typescript
