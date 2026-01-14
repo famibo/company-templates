@@ -70,14 +70,55 @@ The corresponding Backstage app implements a catalog processor (TemplateStagingP
 
 # Template promotion between stages (dev -> int -> prod)
 
-The promotion process consists simply of copying content of the corresponding folders (e.g. dev -> int) AND after copying renaming/adjusting the namespace (e.g. namespace: dev -> namespace: int)
-in the destination template.yaml file.
+The promotion process copies content of the corresponding folders (e.g. dev -> int) and adjusts the namespace (e.g. namespace: dev -> namespace: int) in the destination template.yaml file.
 
-This process should be implemented via bash script (or GitHub workflow) taking only 3 parameters into account: TEMPLATE_NAME, FROM_STAGE (dev/int) and TO_STAGE (int/prod).
+## Promotion Script
 
-A validation is necessary to check if a valid promotion path is used (e.g. a promotion like dev -> prod is invalid and should be prohibited).
+The promotion is implemented via `scripts/promote-template.sh`:
 
-Furthermore the promotion process should use a new feature branch and create a new pull request for each promotion.
+```bash
+# Dry-run (preview changes without executing)
+./scripts/promote-template.sh --template nestjs-template --from dev --to int --dry-run
+
+# Execute promotion (creates branch and PR)
+./scripts/promote-template.sh --template nestjs-template --from dev --to int
+```
+
+Parameters:
+- `--template <name>` - Template name (e.g., `nestjs-template`)
+- `--from <stage>` - Source stage (`dev` or `int`)
+- `--to <stage>` - Target stage (`int` or `prod`)
+- `--dry-run` - Preview changes without executing
+
+A GitHub Actions workflow is also available at `.github/workflows/promote-template.yml` for manual dispatch via the GitHub UI.
+
+## Promotion Validation Rules
+
+The promotion script enforces the following validation rules:
+
+| # | Rule | Error |
+|---|------|-------|
+| 1 | Valid promotion path only (`dev→int` or `int→prod`) | "Invalid promotion path" |
+| 2 | Must run from main branch with clean working directory | "Working directory is not clean" |
+| 3 | Source template must have `metadata.labels.version` | "Source template is missing metadata.labels.version" |
+| 4 | Source version must be greater than destination version | "Cannot promote to a lower version" |
+| 5 | Actual content changes must exist | "Nothing to promote" |
+| 6 | Version-only changes (no content) are rejected | "Version bump alone is not a valid promotion" |
+| 7 | Content changes require a version bump | "Content has changed but version was not updated" |
+
+**A valid promotion requires:**
+- Source has `metadata.labels.version` set
+- Source version > destination version
+- Actual content changes exist (template.yaml or content/ folder)
+- Version has been incremented
+
+## Promotion Workflow
+
+1. Script creates a feature branch: `chore/promote-{template}-{from}-to-{to}`
+2. Copies source folder to destination
+3. Updates namespace in destination template.yaml
+4. Commits changes and pushes branch
+5. Creates a pull request for review
 
 # Rollback procedure
 
@@ -85,20 +126,19 @@ If a promoted template causes issues it can be undone via PR revert. The catalog
 
 # Future Enhancements
 
-## 1. Automated Testing Before Promotion
-Add validation in the promotion script to check:
-- Template syntax validity
-- Required fields present
-- Version number incremented
-
-## 2. Changelog Generation
+## 1. Changelog Generation
 Automatically generate changelog entries when promoting templates.
 
-## 3. Notification System
+## 2. Notification System
 Send notifications (Slack, Teams) when templates are promoted.
 
-## 4. Approval Workflow
+## 3. Approval Workflow
 Integrate with PR approval requirements before promotion to production.
+
+## 4. Enhanced Template Validation
+Add additional validation checks:
+- Template syntax validity (requires `yq` installation)
+- Required Backstage fields validation
 
 # FAQ
 
@@ -106,6 +146,16 @@ Integrate with PR approval requirements before promotion to production.
 A: Make changes directly in the prod folder, skip staging if needed. The process is flexible.
 
 **Q: How do we version templates?**
-A: Use `backstage.io/version` annotation in the template metadata OR version tags. The processor (TemplateStagingProcessor) preserves all annotations.
-TODO: to be evaluated which approach is better for our needs.
-The versioning system should follow the Backstage versioning policy (https://backstage.io/docs/overview/versioning-policy/).
+A: Use `metadata.labels.version` with semantic versioning (e.g., `1.0.0`). The promotion script requires this field and validates that version increases with each promotion.
+
+```yaml
+metadata:
+  labels:
+    version: 1.2.0
+```
+
+**Q: What happens if I forget to bump the version?**
+A: The promotion script will reject the promotion with the error: "Content has changed but version was not updated."
+
+**Q: Can I promote a lower version?**
+A: No. The script validates that the source version is greater than the destination version to prevent accidental downgrades.
