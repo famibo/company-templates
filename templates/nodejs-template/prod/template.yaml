@@ -12,7 +12,7 @@ metadata:
     Further customize this template to fit your project's requirements.
   labels:
     version: 1.0.0
-    visibility: public
+    visibility: private
   tags:
     - stable
 spec:
