@@ -16,7 +16,7 @@ metadata:
   tags:
     - stable
 spec:
-  owner: user:default/guest
+  owner: user:default/famibo
   type: service
   parameters:
     - title: Fill in some steps
