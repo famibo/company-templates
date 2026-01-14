@@ -158,6 +158,12 @@ validate_on_main_branch() {
 
 # Validate that working directory is clean
 validate_clean_working_directory() {
+    # Skip check for dry-run mode (no changes will be made)
+    if [[ "$DRY_RUN" == true ]]; then
+        log_info "Skipping working directory check (dry-run mode)"
+        return 0
+    fi
+
     # Check for any uncommitted changes OR untracked files
     local status
     status=$(git -C "$REPO_ROOT" status --porcelain)
@@ -246,11 +252,268 @@ update_namespace() {
     fi
 }
 
+# Extract version from template.yaml metadata.labels.version
+get_template_version() {
+    local template_yaml="$1"
+
+    if [[ ! -f "$template_yaml" ]]; then
+        echo ""
+        return
+    fi
+
+    if command -v yq &> /dev/null; then
+        local version
+        version=$(yq eval '.metadata.labels.version // ""' "$template_yaml")
+        if [[ "$version" == "null" ]]; then
+            echo ""
+        else
+            echo "$version"
+        fi
+    else
+        # Fallback: use grep/sed for version extraction
+        # Look for "version:" under labels section
+        grep -A1 'labels:' "$template_yaml" 2>/dev/null | grep 'version:' | sed 's/.*version:\s*//' | tr -d ' "'"'" || echo ""
+    fi
+}
+
+# Compare two template.yaml files excluding namespace and version fields
+# Returns 0 if identical (no changes), 1 if different (has changes)
+compare_templates_excluding_namespace_and_version() {
+    local source_yaml="$1"
+    local dest_yaml="$2"
+
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap "rm -rf $temp_dir" RETURN
+
+    local source_normalized="$temp_dir/source.yaml"
+    local dest_normalized="$temp_dir/dest.yaml"
+
+    if command -v yq &> /dev/null; then
+        # Remove namespace and version for comparison
+        yq eval 'del(.metadata.namespace) | del(.metadata.labels.version)' "$source_yaml" > "$source_normalized"
+        yq eval 'del(.metadata.namespace) | del(.metadata.labels.version)' "$dest_yaml" > "$dest_normalized"
+    else
+        # Fallback: use sed to remove namespace and version lines (handles YAML indentation)
+        sed -E '/^[[:space:]]*namespace:/d; /^[[:space:]]*version:/d' "$source_yaml" > "$source_normalized"
+        sed -E '/^[[:space:]]*namespace:/d; /^[[:space:]]*version:/d' "$dest_yaml" > "$dest_normalized"
+    fi
+
+    # Compare normalized files
+    if diff -q "$source_normalized" "$dest_normalized" > /dev/null 2>&1; then
+        return 0  # Identical
+    else
+        return 1  # Different
+    fi
+}
+
+# Compare two semantic versions (major.minor.patch)
+# Returns: 0 if v1 == v2, 1 if v1 > v2, 2 if v1 < v2
+compare_semver() {
+    local v1="$1"
+    local v2="$2"
+
+    # Handle empty versions
+    if [[ -z "$v1" ]] && [[ -z "$v2" ]]; then
+        echo 0
+        return
+    fi
+    if [[ -z "$v1" ]]; then
+        echo 2  # empty < any version
+        return
+    fi
+    if [[ -z "$v2" ]]; then
+        echo 1  # any version > empty
+        return
+    fi
+
+    # Parse version components
+    local v1_major v1_minor v1_patch
+    local v2_major v2_minor v2_patch
+
+    IFS='.' read -r v1_major v1_minor v1_patch <<< "$v1"
+    IFS='.' read -r v2_major v2_minor v2_patch <<< "$v2"
+
+    # Default to 0 if component is missing
+    v1_major=${v1_major:-0}
+    v1_minor=${v1_minor:-0}
+    v1_patch=${v1_patch:-0}
+    v2_major=${v2_major:-0}
+    v2_minor=${v2_minor:-0}
+    v2_patch=${v2_patch:-0}
+
+    # Compare major
+    if (( v1_major > v2_major )); then
+        echo 1
+        return
+    elif (( v1_major < v2_major )); then
+        echo 2
+        return
+    fi
+
+    # Compare minor
+    if (( v1_minor > v2_minor )); then
+        echo 1
+        return
+    elif (( v1_minor < v2_minor )); then
+        echo 2
+        return
+    fi
+
+    # Compare patch
+    if (( v1_patch > v2_patch )); then
+        echo 1
+        return
+    elif (( v1_patch < v2_patch )); then
+        echo 2
+        return
+    fi
+
+    # Equal
+    echo 0
+}
+
+# Compare content folders
+# Returns 0 if identical (no changes), 1 if different (has changes)
+compare_content_folders() {
+    local source_content="$1"
+    local dest_content="$2"
+
+    if [[ ! -d "$source_content" ]] || [[ ! -d "$dest_content" ]]; then
+        return 1  # Different (one doesn't exist)
+    fi
+
+    # Use diff to compare directories recursively
+    if diff -rq "$source_content" "$dest_content" > /dev/null 2>&1; then
+        return 0  # Identical
+    else
+        return 1  # Different
+    fi
+}
+
+# Validate that promotion has meaningful changes
+validate_promotion_changes() {
+    local source_dir="$TEMPLATES_DIR/$TEMPLATE/$FROM_STAGE"
+    local dest_dir="$TEMPLATES_DIR/$TEMPLATE/$TO_STAGE"
+    local source_yaml="$source_dir/template.yaml"
+    local dest_yaml="$dest_dir/template.yaml"
+
+    # Get source version (required)
+    local source_version
+    source_version=$(get_template_version "$source_yaml")
+
+    if [[ -z "$source_version" ]]; then
+        log_error "Source template is missing metadata.labels.version"
+        log_error "Please add a version to $source_yaml before promoting"
+        log_error ""
+        log_error "Example:"
+        log_error "  metadata:"
+        log_error "    labels:"
+        log_error "      version: 1.0.0"
+        exit 1
+    fi
+
+    log_info "Source version: $source_version"
+
+    # If destination doesn't exist, this is first-time promotion - allow it
+    if [[ ! -d "$dest_dir" ]]; then
+        log_info "First-time promotion to $TO_STAGE (destination does not exist)"
+        log_success "Promotion changes validation passed"
+        return 0
+    fi
+
+    # Get destination version
+    local dest_version
+    dest_version=$(get_template_version "$dest_yaml")
+    log_info "Destination version: ${dest_version:-"(not set)"}"
+
+    # Validate source version is greater than destination version
+    if [[ -n "$dest_version" ]]; then
+        local version_cmp
+        version_cmp=$(compare_semver "$source_version" "$dest_version")
+
+        if [[ "$version_cmp" == "2" ]]; then
+            # Source version is less than destination version
+            log_error "Source version ($source_version) is less than destination version ($dest_version)"
+            log_error "Cannot promote to a lower version. Please bump the source version to be greater than $dest_version"
+            exit 1
+        elif [[ "$version_cmp" == "0" ]]; then
+            # Versions are equal - will be caught by later validation rules
+            :  # Continue to content change validation
+        fi
+    fi
+
+    # Compare template.yaml excluding namespace and version
+    local template_has_changes=false
+    if ! compare_templates_excluding_namespace_and_version "$source_yaml" "$dest_yaml"; then
+        template_has_changes=true
+    fi
+
+    # Compare content folders
+    local content_has_changes=false
+    if ! compare_content_folders "$source_dir/content" "$dest_dir/content"; then
+        content_has_changes=true
+    fi
+
+    # Determine if there are any content changes
+    local has_content_changes=false
+    if [[ "$template_has_changes" == true ]] || [[ "$content_has_changes" == true ]]; then
+        has_content_changes=true
+    fi
+
+    # Determine if version changed
+    local has_version_change=false
+    if [[ "$source_version" != "$dest_version" ]]; then
+        has_version_change=true
+    fi
+
+    # Debug output
+    log_info "Template.yaml changes (excluding namespace/version): $template_has_changes"
+    log_info "Content folder changes: $content_has_changes"
+    log_info "Version change: $has_version_change"
+
+    # Apply validation rules
+    if [[ "$has_content_changes" == false ]] && [[ "$has_version_change" == false ]]; then
+        # Rule 1: No changes at all
+        log_error "No changes detected between source ($FROM_STAGE) and destination ($TO_STAGE)"
+        log_error "Nothing to promote."
+        exit 1
+    fi
+
+    if [[ "$has_content_changes" == false ]] && [[ "$has_version_change" == true ]]; then
+        # Rule 2: Only version changed
+        log_error "Only version changed without any other modifications"
+        log_error "Source version: $source_version, Destination version: $dest_version"
+        log_error "Version bump alone is not a valid promotion. Please make actual changes to the template."
+        exit 1
+    fi
+
+    if [[ "$has_content_changes" == true ]] && [[ "$has_version_change" == false ]]; then
+        # Rule 3: Changes without version bump
+        log_error "Content has changed but version was not updated"
+        log_error "Current version in both source and destination: $source_version"
+        log_error "Please bump metadata.labels.version in $source_yaml before promoting"
+        exit 1
+    fi
+
+    # Valid promotion: has content changes AND version bumped
+    log_success "Promotion changes validation passed (changes detected with version bump)"
+}
+
 # Show preview of changes (for dry-run)
 show_preview() {
     local source_dir="$TEMPLATES_DIR/$TEMPLATE/$FROM_STAGE"
     local dest_dir="$TEMPLATES_DIR/$TEMPLATE/$TO_STAGE"
-    local template_yaml="$source_dir/template.yaml"
+    local source_yaml="$source_dir/template.yaml"
+    local dest_yaml="$dest_dir/template.yaml"
+
+    # Get versions for display
+    local source_version
+    source_version=$(get_template_version "$source_yaml")
+    local dest_version=""
+    if [[ -f "$dest_yaml" ]]; then
+        dest_version=$(get_template_version "$dest_yaml")
+    fi
 
     echo ""
     echo "=========================================="
@@ -263,6 +526,14 @@ show_preview() {
     echo ""
     echo "Source:      $source_dir"
     echo "Destination: $dest_dir"
+    echo ""
+    echo "Version:"
+    echo "  Source:      ${source_version:-"(not set)"}"
+    if [[ -d "$dest_dir" ]]; then
+        echo "  Destination: ${dest_version:-"(not set)"}"
+    else
+        echo "  Destination: (new - folder will be created)"
+    fi
     echo ""
     echo "Branch:      chore/promote-$TEMPLATE-$FROM_STAGE-to-$TO_STAGE"
     echo ""
@@ -411,6 +682,7 @@ main() {
     validate_clean_working_directory
     validate_source
     check_destination
+    validate_promotion_changes
 
     if [[ "$DRY_RUN" == true ]]; then
         show_preview
