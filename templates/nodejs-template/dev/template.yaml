@@ -12,11 +12,11 @@ metadata:
     Further customize this template to fit your project's requirements.
   labels:
     version: 1.0.0
-    visibility: private
+    visibility: restricted
   tags:
     - experimental
 spec:
-  owner: user:default/guest
+  owner: group:default/platform-team
   type: service
 
   parameters:
