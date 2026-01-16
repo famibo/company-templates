@@ -1,0 +1,9 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: {% raw %}${{ values.name | dump }}{% endraw %}
+  description: {% raw %}${{ values.description }}{% endraw %}
+spec:
+  type: service
+  owner: {% raw %}${{ values.owner }}{% endraw %}
+  lifecycle: experimental

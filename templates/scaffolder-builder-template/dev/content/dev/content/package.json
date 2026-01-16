@@ -1,0 +1,10 @@
+{
+  "name": "{% raw %}${{ values.name }}{% endraw %}",
+  "version": "0.0.1",
+  "description": "{% raw %}${{ values.description }}{% endraw %}",
+  "private": true,
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {}
+}

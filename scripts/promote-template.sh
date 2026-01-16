@@ -225,6 +225,27 @@ validate_source() {
     log_success "Source validation passed"
 }
 
+# Check if template is promotable
+validate_promotable() {
+    local source_yaml="$TEMPLATES_DIR/$TEMPLATE/$FROM_STAGE/template.yaml"
+
+    local promotable
+    if command -v yq &> /dev/null; then
+        promotable=$(yq eval '.metadata.labels.promotable // "true"' "$source_yaml")
+    else
+        # Fallback: use grep for basic promotable extraction
+        promotable=$(grep -A10 'labels:' "$source_yaml" | grep 'promotable:' | sed 's/.*promotable:\s*//' | tr -d ' "'"'" || echo "true")
+    fi
+
+    if [[ "$promotable" == "false" ]]; then
+        log_error "Template '$TEMPLATE' is marked as non-promotable (metadata.labels.promotable: false)"
+        log_error "This template cannot be promoted between stages."
+        exit 1
+    fi
+
+    log_success "Template is promotable"
+}
+
 # Check if destination directory exists
 check_destination() {
     local dest_dir="$TEMPLATES_DIR/$TEMPLATE/$TO_STAGE"
@@ -681,6 +702,7 @@ main() {
     validate_on_main_branch
     validate_clean_working_directory
     validate_source
+    validate_promotable
     check_destination
     validate_promotion_changes
 
