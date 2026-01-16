@@ -19,15 +19,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Enable auto-merge
+      - name: Merge PR immediately
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          echo "Enabling auto-merge for PR #${{ github.event.pull_request.number }}"
+          echo "Merging PR #${{ github.event.pull_request.number }}"
           echo "Branch: ${{ github.head_ref }}"
           echo "Title: ${{ github.event.pull_request.title }}"
 
           gh pr merge ${{ github.event.pull_request.number }} \
-            --auto \
             --squash \
             --delete-branch
