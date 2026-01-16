@@ -1,5 +1,4 @@
 name: Promote Template
-
 on:
   workflow_dispatch:
     inputs:
@@ -11,6 +10,7 @@ on:
           - my-cool-template
           - nestjs-template
           - nodejs-template
+          - react-native-template
       from_stage:
         description: 'Source stage'
         required: true
@@ -25,11 +25,9 @@ on:
         options:
           - int
           - prod
-
 permissions:
   contents: write
   pull-requests: write
-
 jobs:
   promote:
     runs-on: ubuntu-latest
@@ -37,9 +35,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: main  # Always promote from main branch
+          ref: main # Always promote from main branch
           fetch-depth: 0
-
       - name: Validate promotion path
         run: |
           if [[ "${{ inputs.from_stage }}" == "dev" && "${{ inputs.to_stage }}" == "int" ]]; then
@@ -51,18 +48,15 @@ jobs:
             echo "Valid paths are: dev -> int, int -> prod"
             exit 1
           fi
-
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Install yq
         run: |
           sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
           yq --version
-
       - name: Run promotion script
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
