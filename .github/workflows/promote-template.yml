@@ -10,7 +10,6 @@ on:
           - my-cool-template
           - nestjs-template
           - nodejs-template
-          - react-native-template
       from_stage:
         description: 'Source stage'
         required: true
