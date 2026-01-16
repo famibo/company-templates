@@ -1,0 +1,85 @@
+name: Update Template List
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'templates/**'
+
+permissions:
+  contents: write
+
+jobs:
+  update-list:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Discover promotable templates
+        id: discover
+        run: |
+          templates=()
+          for dir in templates/*/; do
+            template_name=$(basename "$dir")
+
+            # Check if dev/template.yaml exists
+            template_yaml="$dir/dev/template.yaml"
+            if [[ ! -f "$template_yaml" ]]; then
+              echo "Skipping $template_name: no dev/template.yaml"
+              continue
+            fi
+
+            # Check if template is promotable
+            promotable=$(yq eval '.metadata.labels.promotable // "true"' "$template_yaml")
+            if [[ "$promotable" == "false" ]]; then
+              echo "Skipping $template_name: marked as non-promotable"
+              continue
+            fi
+
+            templates+=("$template_name")
+          done
+
+          # Sort templates
+          IFS=$'\n' sorted=($(sort <<<"${templates[*]}")); unset IFS
+
+          echo "Found promotable templates: ${sorted[*]}"
+
+          # Save as JSON array for yq
+          printf '%s\n' "${sorted[@]}" | jq -R -s -c 'split("\n") | map(select(. != ""))' > /tmp/templates.json
+          cat /tmp/templates.json
+
+      - name: Update promote-template.yml
+        run: |
+          workflow_file=".github/workflows/promote-template.yml"
+          templates_json=$(cat /tmp/templates.json)
+
+          # Update the template options using yq
+          yq eval -i ".on.workflow_dispatch.inputs.template.options = $templates_json" "$workflow_file"
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet .github/workflows/promote-template.yml; then
+            echo "No changes to template list"
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "Template list has changed"
+            echo "changed=true" >> $GITHUB_OUTPUT
+            git diff .github/workflows/promote-template.yml
+          fi
+
+      - name: Commit and push changes
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/promote-template.yml
+          git commit -m "chore: Update template list in promote workflow"
+          git push
