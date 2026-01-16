@@ -1,0 +1,10 @@
+{
+  "name": "${{ values.name }}",
+  "version": "0.0.1",
+  "description": "${{ values.description }}",
+  "private": true,
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {}
+}
