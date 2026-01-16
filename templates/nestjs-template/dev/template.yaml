@@ -1,23 +1,22 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  namespace: dev
+  #namespace: dev   # Commented out only when running locally and using the default namespace
   name: nestjs-template
   title: NestJS Application Template
   description: |
-    Create a new NestJS application with TypeScript, ready for integration testing.
+    Create a new NestJS application with TypeScript, working on new experimental features.
     \
-    THIS IS THE INT VERSION. TEST IT INSIDE AND OUT.
+    EXPERIMENTAL FEATURES.
     \
     Further customize this template to fit your project's requirements.
   labels:
     version: 1.0.0
-    visibility: private
+    visibility: public
   tags:
     - nestjs
     - typescript
     - backend
-    - beta
 spec:
   owner: group:default/platform-team
   type: service
