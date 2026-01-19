@@ -16,7 +16,7 @@ metadata:
   tags:
     - stable
 spec:
-  owner: group:default/platform-team
+  owner: group:default/devhub
   type: service
   parameters:
     - title: Fill in some steps

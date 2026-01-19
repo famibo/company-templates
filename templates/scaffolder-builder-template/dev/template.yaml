@@ -20,7 +20,7 @@ metadata:
     - platform
     - internal
 spec:
-  owner: group:default/platform-team
+  owner: group:default/devhub
   type: template
 
   parameters:

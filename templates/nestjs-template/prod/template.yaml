@@ -19,7 +19,7 @@ metadata:
     - backend
     - stable
 spec:
-  owner: group:default/platform-team
+  owner: group:default/devhub
   type: service
   parameters:
     - title: Provide component information

@@ -12,7 +12,7 @@ metadata:
   tags:
     - custom
 spec:
-  owner: group:default/platform-team
+  owner: group:default/devhub
   type: service
 
   parameters:
