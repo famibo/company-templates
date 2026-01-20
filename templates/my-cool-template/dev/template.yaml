@@ -6,13 +6,10 @@ metadata:
   title: My Cool
   description: |
     My cool template
-  labels:
-    version: 0.0.1
-    visibility: private
   tags:
     - custom
 spec:
-  owner: group:default/devhub
+  owner: devhub
   type: service
 
   parameters:
